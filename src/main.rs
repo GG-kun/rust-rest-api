@@ -1,6 +1,8 @@
 use lazy_static::lazy_static; // 1.4.0
 use std::sync::RwLock;
 use std::fmt;
+use regex::Regex;
+
 #[macro_use] extern crate rocket;
 
 #[derive(Clone, Copy, Debug)]
@@ -44,8 +46,14 @@ fn update_one(update: Element) {
 }
 
 #[put("/<id>/<x>")]
-fn put_one(id: i32, x: i32) {
-    update_one(Element{id, x})
+fn put_one(id: i32, x: i32) -> String {
+    match get_element(id) {
+        Err(err) => return err.to_string(),
+        _ => (),
+    };
+    let element = Element{id, x};
+    update_one(element);
+    format!("{}", element)
 }
 
 fn get_element(id: i32) -> Result<Element, &'static str> {
@@ -67,7 +75,9 @@ fn find_one(id: i32) -> String {
 
 #[get("/")]
 fn find() -> String {
-    format!("{:?}", ELEMENTS.read().unwrap())
+    let r = Regex::new(r"([\w]*):").unwrap();
+    let s = format!("{:?}", ELEMENTS.read().unwrap()).replace("Element", "");
+    format!("{}", r.replace_all(&s, "\"$1\":"))
 }
 
 #[launch]
