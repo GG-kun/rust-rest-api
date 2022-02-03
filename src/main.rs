@@ -87,8 +87,24 @@ fn find() -> String {
     format!("{}", r.replace_all(&s, "\"$1\":"))
 }
 
+fn delete(update: &Element) {
+    let id = &update.id;
+    let index = get_index(&id);
+    ELEMENTS.write().unwrap().remove(index);
+}
+
+#[delete("/<id>")]
+fn delete_one(id: String) -> String {
+    let element = match get_element(&id) {
+        Err(err) => return err.to_string(),
+        Ok(element) => element,
+    };
+    delete(&element);
+    format!("{}", element)
+}
+
 #[launch]
 fn rocket() -> _ {
     rocket::build()
-    .mount("/", routes![find, find_one, post_one, put_one])
+    .mount("/", routes![find, find_one, post_one, put_one, delete_one])
 }
