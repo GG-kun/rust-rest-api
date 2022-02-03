@@ -5,15 +5,15 @@ use regex::Regex;
 
 #[macro_use] extern crate rocket;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 struct Element {
-    id: i32,
-    x: i32,
+    id: String,
+    x: String,
 }
 
 impl fmt::Display for Element {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{{\"id\": {}, \"x\": {}}}", self.id, self.x)
+        write!(f, "{{\"id\": \"{}\", \"x\": \"{}\"}}", self.id, self.x)
     }
 }
 
@@ -21,53 +21,60 @@ lazy_static! {
     static ref ELEMENTS: RwLock<Vec<Element>> = RwLock::new(vec![]);
 }
 
-fn insert_one(element: Element) {
-    ELEMENTS.write().unwrap().push(element);
+fn insert_one(element: &Element) {
+    ELEMENTS.write().unwrap().push(element.clone());
 }
 
 #[post("/<id>/<x>")]
-fn post_one(id: i32, x: i32) {
-    insert_one(Element{id, x})
+fn post_one(id: String, x: String) -> String {
+    match get_element(&id) {
+        Ok(_element) => return "id already in use".to_string(), 
+        _ => (),
+    };
+    let element = Element{id, x};
+    insert_one(&element);
+    format!("{}", element)
 }
 
-fn get_index(id: i32) -> usize {
+fn get_index(id: &String) -> usize {
     for (i, element) in ELEMENTS.read().unwrap().iter().enumerate() {
-        if element.id == id {
+        if element.id == *id {
             return i
         }
     }
     1usize
 }
 
-fn update_one(update: Element) {
-    let index = get_index(update.id);
+fn update_one(update: &Element) {
+    let id = &update.id;
+    let index = get_index(&id);
     ELEMENTS.write().unwrap().remove(index);
     insert_one(update);
 }
 
 #[put("/<id>/<x>")]
-fn put_one(id: i32, x: i32) -> String {
-    match get_element(id) {
+fn put_one(id: String, x: String) -> String {
+    match get_element(&id) {
         Err(err) => return err.to_string(),
         _ => (),
     };
     let element = Element{id, x};
-    update_one(element);
+    update_one(&element);
     format!("{}", element)
 }
 
-fn get_element(id: i32) -> Result<Element, &'static str> {
+fn get_element(id: &String) -> Result<Element, &'static str> {
     for element in ELEMENTS.read().unwrap().iter() {
-        if element.id == id {
-            return Ok(*element)
+        if element.id == *id {
+            return Ok(element.clone())
         }
     }
     Err("could not find element")
 }
 
 #[get("/<id>")]
-fn find_one(id: i32) -> String {
-    match get_element(id) {
+fn find_one(id: String) -> String {
+    match get_element(&id) {
         Ok(element) => return format!("{}", element),
         Err(err) => return format!("{}", err),
     }
